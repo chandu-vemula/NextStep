@@ -1,7 +1,11 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { supabase } from '../lib/supabase'
 import toast from 'react-hot-toast'
+import CareerChat from '../features/CareerChat'
+import SkillHub from '../features/SkillHub'
+import PortfolioGenerator from '../features/PortfolioGenerator'
 import {
   MessageSquare,
   Lightbulb,
@@ -15,6 +19,7 @@ import {
   Briefcase,
   Menu,
   X,
+  Home,
 } from 'lucide-react'
 
 function DashboardPage() {
@@ -22,6 +27,50 @@ function DashboardPage() {
   const navigate = useNavigate()
   const [activeSection, setActiveSection] = useState('overview')
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [stats, setStats] = useState({
+    conversations: 0,
+    skills: 0,
+    profileComplete: 0,
+  })
+
+  useEffect(() => {
+    fetchStats()
+  }, [user])
+
+  const fetchStats = async () => {
+    if (!user) return
+
+    try {
+      // Fetch profile to calculate completion
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single()
+
+      if (profile) {
+        const fields = [
+          profile.full_name,
+          profile.headline,
+          profile.about,
+          profile.email,
+          profile.skills?.length > 0,
+          profile.experience?.length > 0,
+          profile.education?.length > 0,
+        ]
+        const completed = fields.filter(Boolean).length
+        const profileComplete = Math.round((completed / fields.length) * 100)
+
+        setStats({
+          conversations: 0, // Would come from chat_history count
+          skills: profile.skills?.length || 0,
+          profileComplete,
+        })
+      }
+    } catch (error) {
+      console.error('Error fetching stats:', error)
+    }
+  }
 
   const handleSignOut = async () => {
     const { error } = await signOut()
@@ -37,7 +86,7 @@ function DashboardPage() {
     {
       id: 'overview',
       name: 'Overview',
-      icon: Sparkles,
+      icon: Home,
       description: 'Your career dashboard',
     },
     {
@@ -77,17 +126,17 @@ function DashboardPage() {
   const renderContent = () => {
     switch (activeSection) {
       case 'overview':
-        return <OverviewContent navigation={navigation} setActiveSection={setActiveSection} />
+        return <OverviewContent navigation={navigation} setActiveSection={setActiveSection} stats={stats} />
       case 'career-chat':
-        return <PlaceholderContent title="AI Career Chatbot" description="Get personalized career guidance through natural conversations with our AI assistant." icon={MessageSquare} />
+        return <CareerChat />
       case 'skills':
-        return <PlaceholderContent title="Skill Intelligence Hub" description="Explore in-demand skills, understand market trends, and find curated learning resources." icon={TrendingUp} />
+        return <SkillHub />
       case 'portfolio':
-        return <PlaceholderContent title="Portfolio Generator" description="Transform your profile into a stunning portfolio website with a shareable link." icon={FileText} />
+        return <PortfolioGenerator />
       case 'resume':
         return <PlaceholderContent title="Resume Builder" description="Create an ATS-optimized resume that gets you noticed by recruiters." icon={Briefcase} comingSoon />
       default:
-        return <OverviewContent navigation={navigation} setActiveSection={setActiveSection} />
+        return <OverviewContent navigation={navigation} setActiveSection={setActiveSection} stats={stats} />
     }
   }
 
@@ -109,10 +158,13 @@ function DashboardPage() {
       >
         {/* Logo */}
         <div className="h-16 flex items-center justify-between px-6 border-b border-slate-800">
-          <div className="text-xl font-semibold tracking-tight">
+          <button
+            onClick={() => navigate('/')}
+            className="text-xl font-semibold tracking-tight hover:opacity-80 transition-opacity"
+          >
             <span className="text-cyan-400">Next</span>
             <span className="text-white">Step</span>
-          </div>
+          </button>
           <button
             onClick={() => setSidebarOpen(false)}
             className="lg:hidden p-2 text-slate-400 hover:text-white"
@@ -205,7 +257,7 @@ function DashboardPage() {
           </button>
 
           <h1 className="text-lg font-semibold text-white capitalize hidden sm:block">
-            {activeSection.replace('-', ' ')}
+            {activeSection === 'career-chat' ? 'AI Career Chatbot' : activeSection.replace('-', ' ')}
           </h1>
 
           <div className="flex items-center gap-4">
@@ -226,7 +278,7 @@ function DashboardPage() {
 }
 
 // Overview Content Component
-function OverviewContent({ navigation, setActiveSection }) {
+function OverviewContent({ navigation, setActiveSection, stats }) {
   const features = navigation.filter((n) => n.id !== 'overview')
 
   return (
@@ -245,15 +297,15 @@ function OverviewContent({ navigation, setActiveSection }) {
       {/* Quick Stats */}
       <div className="grid sm:grid-cols-3 gap-4">
         <div className="p-6 bg-slate-900/50 rounded-xl border border-slate-800">
-          <div className="text-3xl font-bold text-cyan-400 mb-1">0</div>
+          <div className="text-3xl font-bold text-cyan-400 mb-1">{stats.conversations}</div>
           <div className="text-slate-400">AI Conversations</div>
         </div>
         <div className="p-6 bg-slate-900/50 rounded-xl border border-slate-800">
-          <div className="text-3xl font-bold text-cyan-400 mb-1">0</div>
+          <div className="text-3xl font-bold text-cyan-400 mb-1">{stats.skills}</div>
           <div className="text-slate-400">Skills Tracked</div>
         </div>
         <div className="p-6 bg-slate-900/50 rounded-xl border border-slate-800">
-          <div className="text-3xl font-bold text-cyan-400 mb-1">0%</div>
+          <div className="text-3xl font-bold text-cyan-400 mb-1">{stats.profileComplete}%</div>
           <div className="text-slate-400">Profile Complete</div>
         </div>
       </div>

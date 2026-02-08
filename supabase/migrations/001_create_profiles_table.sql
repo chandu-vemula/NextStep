@@ -53,3 +53,35 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- Create chat_history table for AI conversations
+CREATE TABLE IF NOT EXISTS public.chat_history (
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
+  messages JSONB DEFAULT '[]'::jsonb,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
+-- Enable Row Level Security for chat_history
+ALTER TABLE public.chat_history ENABLE ROW LEVEL SECURITY;
+
+-- Create policies for chat_history
+CREATE POLICY "Users can view their own chat history"
+  ON public.chat_history
+  FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own chat history"
+  ON public.chat_history
+  FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own chat history"
+  ON public.chat_history
+  FOR UPDATE
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own chat history"
+  ON public.chat_history
+  FOR DELETE
+  USING (auth.uid() = user_id);
