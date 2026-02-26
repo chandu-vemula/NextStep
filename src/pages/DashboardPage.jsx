@@ -6,6 +6,7 @@ import toast from 'react-hot-toast'
 import CareerChat from '../features/CareerChat'
 import SkillHub from '../features/SkillHub'
 import PortfolioGenerator from '../features/PortfolioGenerator'
+import ResumeBuilder from '../features/ResumeBuilder'
 import {
   MessageSquare,
   Lightbulb,
@@ -50,13 +51,10 @@ function DashboardPage() {
 
       if (profile) {
         const fields = [
-          profile.full_name,
-          profile.headline,
-          profile.about,
-          profile.email,
-          profile.skills?.length > 0,
           profile.experience?.length > 0,
           profile.education?.length > 0,
+          profile.skills?.length > 0,
+          profile.projects?.length > 0,
         ]
         const completed = fields.filter(Boolean).length
         const profileComplete = Math.round((completed / fields.length) * 100)
@@ -113,7 +111,6 @@ function DashboardPage() {
       name: 'Resume Builder',
       icon: Briefcase,
       description: 'Build an ATS-friendly resume',
-      badge: 'Coming Soon',
     },
   ]
 
@@ -134,7 +131,7 @@ function DashboardPage() {
       case 'portfolio':
         return <PortfolioGenerator />
       case 'resume':
-        return <PlaceholderContent title="Resume Builder" description="Create an ATS-optimized resume that gets you noticed by recruiters." icon={Briefcase} comingSoon />
+        return <ResumeBuilder />
       default:
         return <OverviewContent navigation={navigation} setActiveSection={setActiveSection} stats={stats} />
     }

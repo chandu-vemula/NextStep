@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { sendMessage } from '../lib/gemini'
 import {
   TrendingUp,
@@ -20,6 +20,7 @@ import {
   Cloud,
   Cpu,
   Megaphone,
+  RefreshCw,
 } from 'lucide-react'
 
 const SKILL_CATEGORIES = [
@@ -33,21 +34,65 @@ const SKILL_CATEGORIES = [
   { id: 'marketing', name: 'Marketing', icon: Megaphone, color: 'yellow' },
 ]
 
-const TRENDING_SKILLS = [
-  { name: 'Generative AI', demand: 95, growth: '+180%', category: 'ai' },
-  { name: 'Prompt Engineering', demand: 88, growth: '+250%', category: 'ai' },
-  { name: 'Kubernetes', demand: 85, growth: '+45%', category: 'cloud' },
-  { name: 'Rust', demand: 78, growth: '+120%', category: 'programming' },
-  { name: 'Data Engineering', demand: 90, growth: '+65%', category: 'data' },
-  { name: 'Product Management', demand: 82, growth: '+30%', category: 'management' },
-]
-
 function SkillHub() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState(null)
   const [selectedSkill, setSelectedSkill] = useState(null)
   const [skillAnalysis, setSkillAnalysis] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [trendingSkills, setTrendingSkills] = useState([])
+  const [trendingLoading, setTrendingLoading] = useState(true)
+  const [trendingError, setTrendingError] = useState(false)
+
+  useEffect(() => {
+    fetchTrendingSkills()
+  }, [])
+
+  const fetchTrendingSkills = async () => {
+    setTrendingLoading(true)
+    setTrendingError(false)
+
+    try {
+      const prompt = `List the top 8 most in-demand and trending tech/professional skills in the job market right now in ${new Date().getFullYear()}. For each skill provide:
+- name: the skill name
+- demand: a number from 60-98 representing current job market demand percentage
+- growth: year-over-year growth as a string like "+120%"
+- category: one of these exact values: programming, design, data, management, security, cloud, ai, marketing
+
+Respond ONLY with a valid JSON array, no markdown, no explanation. Example format:
+[{"name":"Skill Name","demand":90,"growth":"+120%","category":"ai"}]`
+
+      const response = await sendMessage([{ role: 'user', content: prompt }])
+
+      // Extract JSON from response (handle potential markdown wrapping)
+      let jsonStr = response.trim()
+      if (jsonStr.startsWith('```')) {
+        jsonStr = jsonStr.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '')
+      }
+
+      const skills = JSON.parse(jsonStr)
+
+      if (Array.isArray(skills) && skills.length > 0) {
+        setTrendingSkills(skills.slice(0, 8))
+      } else {
+        throw new Error('Invalid response format')
+      }
+    } catch (error) {
+      console.error('Error fetching trending skills:', error)
+      setTrendingError(true)
+      // Fallback to avoid empty state
+      setTrendingSkills([
+        { name: 'Generative AI', demand: 95, growth: '+180%', category: 'ai' },
+        { name: 'Prompt Engineering', demand: 88, growth: '+250%', category: 'ai' },
+        { name: 'Kubernetes', demand: 85, growth: '+45%', category: 'cloud' },
+        { name: 'Rust', demand: 78, growth: '+120%', category: 'programming' },
+        { name: 'Data Engineering', demand: 90, growth: '+65%', category: 'data' },
+        { name: 'Product Management', demand: 82, growth: '+30%', category: 'management' },
+      ])
+    } finally {
+      setTrendingLoading(false)
+    }
+  }
 
   const analyzeSkill = async (skillName) => {
     setSelectedSkill(skillName)
@@ -178,32 +223,53 @@ Format with clear sections and bullet points. Be specific with resource names an
 
           {/* Trending Skills */}
           <div className="bg-slate-900/50 rounded-xl border border-slate-800 p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Sparkles className="w-4 h-4 text-cyan-400" />
-              <h2 className="text-sm font-medium text-slate-400">TRENDING IN 2026</h2>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-cyan-400" />
+                <h2 className="text-sm font-medium text-slate-400">TRENDING IN {new Date().getFullYear()}</h2>
+              </div>
+              <button
+                onClick={fetchTrendingSkills}
+                disabled={trendingLoading}
+                className="p-1.5 text-slate-500 hover:text-cyan-400 transition-colors disabled:opacity-50"
+                title="Refresh trending skills"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${trendingLoading ? 'animate-spin' : ''}`} />
+              </button>
             </div>
-            <div className="space-y-3">
-              {TRENDING_SKILLS.map((skill, index) => (
-                <button
-                  key={index}
-                  onClick={() => analyzeSkill(skill.name)}
-                  className="w-full text-left group"
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm text-white group-hover:text-cyan-400 transition-colors">
-                      {skill.name}
-                    </span>
-                    <span className="text-xs text-emerald-400">{skill.growth}</span>
-                  </div>
-                  <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-cyan-500 to-cyan-400 rounded-full transition-all"
-                      style={{ width: `${skill.demand}%` }}
-                    />
-                  </div>
-                </button>
-              ))}
-            </div>
+
+            {trendingLoading && trendingSkills.length === 0 ? (
+              <div className="flex flex-col items-center py-6 text-slate-500">
+                <Loader2 className="w-6 h-6 animate-spin mb-2" />
+                <p className="text-xs">Fetching live trends...</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {trendingError && (
+                  <p className="text-xs text-amber-400/70 mb-2">Using cached data. Click refresh to retry.</p>
+                )}
+                {trendingSkills.map((skill, index) => (
+                  <button
+                    key={index}
+                    onClick={() => analyzeSkill(skill.name)}
+                    className="w-full text-left group"
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm text-white group-hover:text-cyan-400 transition-colors">
+                        {skill.name}
+                      </span>
+                      <span className="text-xs text-emerald-400">{skill.growth}</span>
+                    </div>
+                    <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-cyan-500 to-cyan-400 rounded-full transition-all"
+                        style={{ width: `${skill.demand}%` }}
+                      />
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 

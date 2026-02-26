@@ -13,6 +13,7 @@ import {
   Briefcase,
   GraduationCap,
   Code,
+  Loader2,
   Link as LinkIcon,
   Mail,
   Phone,
@@ -48,6 +49,7 @@ function ProfilePage() {
   })
 
   const [newSkill, setNewSkill] = useState('')
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
 
   useEffect(() => {
     fetchProfile()
@@ -119,6 +121,52 @@ function ProfilePage() {
       ...profile,
       skills: profile.skills.filter((skill) => skill !== skillToRemove),
     })
+  }
+
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file')
+      return
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Image must be less than 2MB')
+      return
+    }
+
+    setUploadingPhoto(true)
+    try {
+      const fileExt = file.name.split('.').pop()
+      const filePath = `${user.id}/avatar.${fileExt}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true })
+
+      if (uploadError) throw uploadError
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath)
+
+      setProfile({ ...profile, avatar_url: publicUrl })
+
+      await supabase.from('profiles').upsert({
+        id: user.id,
+        avatar_url: publicUrl,
+        updated_at: new Date().toISOString(),
+      })
+
+      toast.success('Photo uploaded successfully!')
+    } catch (error) {
+      console.error('Upload error:', error)
+      toast.error('Error uploading photo: ' + error.message)
+    } finally {
+      setUploadingPhoto(false)
+    }
   }
 
   const addExperience = () => {
@@ -280,9 +328,23 @@ function ProfilePage() {
                 <User className="w-12 h-12 text-slate-500" />
               )}
             </div>
-            <button className="absolute bottom-0 right-0 p-2 bg-cyan-500 rounded-full text-slate-950 hover:bg-cyan-400 transition-colors">
-              <Camera className="w-4 h-4" />
-            </button>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handlePhotoUpload}
+              className="hidden"
+              id="avatar-upload"
+            />
+            <label
+              htmlFor="avatar-upload"
+              className="absolute bottom-0 right-0 p-2 bg-cyan-500 rounded-full text-slate-950 hover:bg-cyan-400 transition-colors cursor-pointer"
+            >
+              {uploadingPhoto ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Camera className="w-4 h-4" />
+              )}
+            </label>
           </div>
 
           <div className="text-center sm:text-left">

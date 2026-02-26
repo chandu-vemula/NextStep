@@ -20,3 +20,6 @@ AIzaSyCldtP4_ExGpiSBZUl6o7bq1c_J3a_QZ5w
 
 https://zrxvsjkhoumahgfcziqs.supabase.co
 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpyeHZzamtob3VtYWhnZmN6aXFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA0ODYzMjcsImV4cCI6MjA4NjA2MjMyN30.NLFoTVEAm0dNuTyeKRPcgMgg_wxIId1FiC678WtLnR4
+
+
+https://console.groq.com/keys
